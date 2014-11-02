@@ -1,8 +1,16 @@
-FROM dockerfile/ruby
+FROM openshift/ruby-20-centos
 
-RUN gem install sinatra
-ADD app.rb /tmp/app.rb
+RUN gem install sinatra sinatra-activerecord mysql2 --no-ri --no-rdoc
+
+ADD . /tmp/
+
+USER root
+
+RUN chown -R ruby:ruby /tmp/*
+
+USER ruby
+
+WORKDIR /tmp/
 
 EXPOSE 8080
-CMD ["/usr/bin/ruby","/tmp/app.rb"]
-
+CMD ["ruby", "app.rb"]
