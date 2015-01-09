@@ -1,5 +1,5 @@
 require 'sinatra'
-require_relative 'config/environments'
+require_relative 'config/database'
 require_relative 'models'
 
 set :bind, '0.0.0.0'
@@ -13,18 +13,56 @@ configure do
   %x"rake db:migrate"
   puts "Run app..."
 
-  while !self.connect_to_database
-    puts "Connecting to database...\n"
-    sleep 0.1
+  if ENV['RACK_ENV']=="production"
+    while !self.connect_to_database_prod
+      puts "Connecting to production database...\n"
+      sleep 0.1
+    end
+  else 
+    while !self.connect_to_database_test
+      puts "Connecting to test database...\n"
+      sleep 0.1
+    end
   end
   puts "Connected to database"
 end
 
 get '/' do
-  Timestamp.create(date: Time.now, text: "This is a message from a database query. The last insertion in the database was at")
-  "Hello World!\n"+
-  # ENV values are generated during template processing
-  # and then passed to the container when openshift launches it.
-  "All the environment variables are: #{ENV.map { |k,v| "#{k}=#{v}" }.join("\n")}]\n" +
-  "#{Timestamp.last().text} #{Timestamp.last().date}."
+  File.read('main.html')
+end
+
+get '/keys' do
+  a={}
+  KeyPair.all.each do |v|
+    a[v.key]=v.value
+  end
+  a.to_s
+end
+
+get '/keys/:id' do
+  if KeyPair.exists?(params[:id])
+    KeyPair.find(params[:id]).value
+  else
+    not_found "Key not found"
+  end
+end
+
+post '/keys/:id' do
+  if KeyPair.exists?(params[:id])
+    KeyPair.update(params['id'], value: params['value']) 
+    "Key updated"
+  else
+    KeyPair.create(key:params[:id],value:params['value']).save
+    "Key created"
+  end
+end
+  
+delete '/keys/:id' do
+  if KeyPair.exists?(params[:id])
+    v=KeyPair.find(params[:id])
+    v.destroy
+    "Key deleted"
+  else
+    "Key not found"
+  end
 end
